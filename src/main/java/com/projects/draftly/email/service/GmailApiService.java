@@ -1,6 +1,5 @@
 package com.projects.draftly.email.service;
 
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.auth.oauth2.BearerToken;
@@ -10,6 +9,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleRefreshTokenRequest;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.ListMessagesResponse;
 import com.google.api.services.gmail.model.Message;
+import com.google.api.services.gmail.model.Thread;
 import com.projects.draftly.auth.model.User;
 import com.projects.draftly.auth.service.EncryptionService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -83,5 +84,36 @@ public class GmailApiService {
             }
         }
         return sentMessagesBodies;
+    }
+
+    public Thread fetchThread(User user, String gmailThreadId) throws Exception {
+        Gmail gmail = this.getGmailClient(user);
+        return gmail.users().threads().get("me", gmailThreadId).execute();
+    }
+
+    public String decodeBody(com.google.api.services.gmail.model.MessagePart part) {
+        if (part == null) return null;
+
+        if (part.getBody() != null && part.getBody().getData() != null && !part.getBody().getData().isBlank()) {
+            return new String(Base64.getUrlDecoder().decode(part.getBody().getData()));
+        }
+
+        if (part.getParts() != null) {
+            for (com.google.api.services.gmail.model.MessagePart subPart : part.getParts()) {
+                String decoded = decodeBody(subPart);
+                if (decoded != null && !decoded.isBlank()) return decoded;
+            }
+        }
+
+        return null;
+    }
+
+    public String extractHeader(Message message, String headerName) {
+        if (message.getPayload() == null || message.getPayload().getHeaders() == null) return null;
+        return message.getPayload().getHeaders().stream()
+            .filter(h -> h.getName().equalsIgnoreCase(headerName))
+            .map(com.google.api.services.gmail.model.MessagePartHeader::getValue)
+            .findFirst()
+            .orElse(null);
     }
 }

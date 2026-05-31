@@ -15,7 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/drafts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000") // Permissive mapping allowing local React development execution
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class DraftController {
 
     private final DraftManagementService draftManagementService;

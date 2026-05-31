@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface EmailDraftRepository extends JpaRepository<EmailDraft, Long> {
     List<EmailDraft> findByThreadIdAndStatus(Long threadId, String status);
+
 }
