@@ -1,12 +1,15 @@
 package com.projects.draftly.ai.service;
 
-
+import com.google.genai.Client;
 import com.projects.draftly.auth.model.User;
 import com.projects.draftly.draft.model.EmailDraft;
 import com.projects.draftly.draft.repository.EmailDraftRepository;
 import com.projects.draftly.email.model.EmailThread;
 import com.projects.draftly.email.service.GmailApiService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.ai.google.genai.GoogleGenAiChatModel;
+import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,9 @@ public class AiDraftEngineService {
     private final ChatClient.Builder chatClientBuilder;
     private final GmailApiService gmailApiService;
     private final EmailDraftRepository draftRepository;
+
+    @Value("${spring.ai.google.genai.api-key}")
+    private String geminiAPIKey;
 
     public EmailDraft generateDraftForThread(EmailThread thread, String requestedTone, String incomingEmailBody) {
         User user = thread.getUser();
