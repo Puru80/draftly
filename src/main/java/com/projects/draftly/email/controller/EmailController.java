@@ -1,8 +1,11 @@
 package com.projects.draftly.email.controller;
 
+import com.projects.draftly.ai.service.AiDraftEngineService;
 import com.projects.draftly.auth.model.User;
 import com.projects.draftly.auth.repository.UserRepository;
+import com.projects.draftly.draft.dto.DraftResponseDto;
 import com.projects.draftly.email.dto.EmailThreadResponseDto;
+import com.projects.draftly.email.dto.GenerateDraftRequest;
 import com.projects.draftly.email.dto.ThreadDetailResponseDto;
 import com.projects.draftly.email.dto.ThreadMessageDto;
 import com.projects.draftly.email.model.EmailThread;
@@ -15,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Comparator;
 import java.util.List;
 
 @RestController
@@ -26,6 +30,7 @@ public class EmailController {
     private final EmailThreadRepository emailThreadRepository;
     private final UserRepository userRepository;
     private final GmailApiService gmailApiService;
+    private final AiDraftEngineService aiDraftEngineService;
 
     @GetMapping
     public ResponseEntity<List<EmailThreadResponseDto>> getThreads(@AuthenticationPrincipal OAuth2User principal) {
@@ -86,6 +91,46 @@ public class EmailController {
             .build();
 
         return ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/{id}/generate-draft")
+    public ResponseEntity<DraftResponseDto> generateDraft(
+            @PathVariable Long id,
+            @RequestBody GenerateDraftRequest request,
+            @AuthenticationPrincipal OAuth2User principal) throws Exception {
+        String email = principal.getAttribute("email");
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found: " + email));
+
+        EmailThread thread = emailThreadRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Thread not found: " + id));
+
+        if (!thread.getUser().getId().equals(user.getId())) {
+            return ResponseEntity.notFound().build();
+        }
+
+        com.google.api.services.gmail.model.Thread gmailThread =
+            gmailApiService.fetchThread(user, thread.getGmailThreadId());
+
+        Message latestMessage = gmailThread.getMessages().stream()
+            .max(Comparator.comparingLong(m -> m.getInternalDate() != null ? m.getInternalDate() : 0L))
+            .orElseThrow(() -> new RuntimeException("No messages found in thread"));
+
+        String incomingEmailBody = gmailApiService.decodeBody(latestMessage.getPayload());
+
+        com.projects.draftly.draft.model.EmailDraft draft =
+            aiDraftEngineService.generateDraftForThread(thread, request.getTone(), incomingEmailBody);
+
+        return ResponseEntity.ok(DraftResponseDto.builder()
+            .id(draft.getId())
+            .threadId(draft.getThread().getId())
+            .gmailThreadId(draft.getThread().getGmailThreadId())
+            .subject(draft.getThread().getSubject())
+            .suggestedBody(draft.getSuggestedBody())
+            .currentTone(draft.getCurrentTone())
+            .status(draft.getStatus())
+            .updatedAt(draft.getUpdatedAt())
+            .build());
     }
 
     private ThreadMessageDto toMessageDto(Message message) {
