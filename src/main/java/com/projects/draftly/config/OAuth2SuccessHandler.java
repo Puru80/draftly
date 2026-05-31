@@ -16,6 +16,8 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Component
 @RequiredArgsConstructor
@@ -55,6 +57,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         // Redirect the user back to the React Application view
         // In a real application, you might append a short-lived local JWT query parameter here for React auth state management.
-        getRedirectStrategy().sendRedirect(request, response, "http://localhost:3000/dashboard?login=success");
+        getRedirectStrategy().sendRedirect(request, response,
+            "http://localhost:3000/dashboard?login=success&email=" + URLEncoder.encode(email, StandardCharsets.UTF_8));
     }
 }

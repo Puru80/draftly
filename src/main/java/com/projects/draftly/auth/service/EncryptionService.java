@@ -7,6 +7,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HexFormat;
 
 @Service
 public class EncryptionService {
@@ -18,7 +19,8 @@ public class EncryptionService {
 
     public String encrypt(String plainText) {
         try {
-            SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), ALGORITHM);
+            byte[] decodedKey = HexFormat.of().parseHex(secretKey);
+            SecretKeySpec keySpec = new SecretKeySpec(decodedKey, ALGORITHM);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.ENCRYPT_MODE, keySpec);
             byte[] encryptedBytes = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
@@ -30,7 +32,8 @@ public class EncryptionService {
 
     public String decrypt(String encryptedText) {
         try {
-            SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), ALGORITHM);
+            byte[] decodedKey = HexFormat.of().parseHex(secretKey);
+            SecretKeySpec keySpec = new SecretKeySpec(decodedKey, ALGORITHM);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.DECRYPT_MODE, keySpec);
             byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedText));
